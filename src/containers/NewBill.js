@@ -17,10 +17,13 @@ export default class NewBill {
   }
   handleChangeFile = e => {
     const file = this.document.querySelector(`input[data-testid="file"]`).files[0]
+    const inputFile = this.document.querySelector("Input[type='file']")
     const filePath = e.target.value.split(/\\/g)
     const fileName = filePath[filePath.length-1]
-    const extension = fileName.substring(fileName.lastIndexOf(".") + 1);
+    const extension = fileName.substring(fileName.lastIndexOf(".") + 1)
+    console.log(extension)
     if (["jpg", "jpeg", "png"].includes(extension)) {
+      inputFile.setCustomValidity("")
       this.firestore
         .storage
         .ref(`justificatifs/${fileName}`)
@@ -31,8 +34,7 @@ export default class NewBill {
           this.fileName = fileName
         })
     } else {
-      const file = this.document.querySelector("Input[type='file']")
-      file.setCustomValidity("Format " + extension.toUpperCase() + " invalide. Format valide : JPG, JPEG ou PNG.");
+      inputFile.setCustomValidity("Format " + extension.toUpperCase() + " invalide. Format valide : JPG, JPEG ou PNG.");
       this.fileName = "invalid";
     }
   }
@@ -40,10 +42,9 @@ export default class NewBill {
     e.preventDefault()
 
     if (this.fileName === "invalid") {
-      return;
+      return false
     }
 
-    console.log('e.target.querySelector(`input[data-testid="datepicker"]`).value', e.target.querySelector(`input[data-testid="datepicker"]`).value)
     const email = JSON.parse(localStorage.getItem("user")).email
     const bill = {
       email,
@@ -60,11 +61,11 @@ export default class NewBill {
     }
     this.createBill(bill)
     this.onNavigate(ROUTES_PATH['Bills'])
+    return bill
   }
 
   // not need to cover this function by tests
   createBill = (bill) => {
-    console.log(bill);
     if (this.firestore) {
       this.firestore
       .bills()
