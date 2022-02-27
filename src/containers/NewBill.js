@@ -1,50 +1,54 @@
-
 import { ROUTES_PATH } from '../constants/routes.js'
 import Logout from "./Logout.js"
 
 export default class NewBill {
-  constructor({ document, onNavigate, firestore, localStorage }) {
+  constructor({ document, onNavigate, store, localStorage }) {
     this.document = document
     this.onNavigate = onNavigate
-    this.firestore = firestore
+    this.store = store
     const formNewBill = this.document.querySelector(`form[data-testid="form-new-bill"]`)
     formNewBill.addEventListener("submit", this.handleSubmit)
     const file = this.document.querySelector(`input[data-testid="file"]`)
     file.addEventListener("change", this.handleChangeFile)
     this.fileUrl = null
     this.fileName = null
+    this.billId = null
     new Logout({ document, localStorage, onNavigate })
   }
   handleChangeFile = e => {
+    e.preventDefault()
     const file = this.document.querySelector(`input[data-testid="file"]`).files[0]
-    const inputFile = this.document.querySelector("Input[type='file']")
     const filePath = e.target.value.split(/\\/g)
     const fileName = filePath[filePath.length-1]
-    const extension = fileName.substring(fileName.lastIndexOf(".") + 1)
-    console.log(extension)
-    if (["jpg", "jpeg", "png"].includes(extension)) {
-      inputFile.setCustomValidity("")
-      this.firestore
-        .storage
-        .ref(`justificatifs/${fileName}`)
-        .put(file)
-        .then(snapshot => snapshot.ref.getDownloadURL())
-        .then(url => {
-          this.fileUrl = url
-          this.fileName = fileName
-        })
+    const formData = new FormData()
+    const email = JSON.parse(localStorage.getItem("user")).email
+    formData.append('file', file)
+    formData.append('email', email)
+
+// Added a regex to filter the file extension, if it is not valid --> clear the file and send an alert
+ 
+    if (/\.(png|jpg|jpeg)$/i.test(fileName)) {
+    this.store
+      .bills()
+      .create({
+        data: formData,
+        headers: {
+          noContentType: true
+        }
+      })
+      .then(({fileUrl, key}) => {
+        this.billId = key
+        this.fileUrl = fileUrl
+        this.fileName = fileName
+      })
     } else {
-      inputFile.setCustomValidity("Format " + extension.toUpperCase() + " invalide. Format valide : JPG, JPEG ou PNG.");
-      this.fileName = "invalid";
+      e.target.value="";
+      alert("Veuillez choisir un fichier .jpg, .jpeg ou .png");
     }
   }
   handleSubmit = e => {
     e.preventDefault()
-
-    if (this.fileName === "invalid") {
-      return false
-    }
-
+    console.log('e.target.querySelector(`input[data-testid="datepicker"]`).value', e.target.querySelector(`input[data-testid="datepicker"]`).value)
     const email = JSON.parse(localStorage.getItem("user")).email
     const bill = {
       email,
@@ -59,21 +63,21 @@ export default class NewBill {
       fileName: this.fileName,
       status: 'pending'
     }
-    this.createBill(bill)
+    this.updateBill(bill)
     this.onNavigate(ROUTES_PATH['Bills'])
-    return bill
   }
 
   // not need to cover this function by tests
-  createBill = (bill) => {
-    if (this.firestore) {
-      this.firestore
+  /*istanbul ignore next*/
+  updateBill = (bill) => {
+    if (this.store) {
+      this.store
       .bills()
-      .add(bill)
+      .update({data: JSON.stringify(bill), selector: this.billId})
       .then(() => {
         this.onNavigate(ROUTES_PATH['Bills'])
       })
-      .catch(error => error)
+      .catch(error => console.error(error))
     }
   }
 }

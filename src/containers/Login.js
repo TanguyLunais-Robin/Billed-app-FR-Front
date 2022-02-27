@@ -34,8 +34,10 @@ export default class Login {
         PREVIOUS_LOCATION = this.PREVIOUS_LOCATION
         this.document.body.style.backgroundColor="#fff"
       })
-
+    
   }
+
+  // fixed admin login issue, "employee-email-input" & "employee-password-input" --> "admin-email-input" & "admin-password-input"
 
   handleSubmitAdmin = e => {
     e.preventDefault()
@@ -54,11 +56,12 @@ export default class Login {
         this.onNavigate(ROUTES_PATH['Dashboard'])
         this.PREVIOUS_LOCATION = ROUTES_PATH['Dashboard']
         PREVIOUS_LOCATION = this.PREVIOUS_LOCATION
-        this.document.body.style.backgroundColor="#fff"
+        document.body.style.backgroundColor="#fff"
       })
   }
 
   // not need to cover this function by tests
+  /* istanbul ignore next */
   login = (user) => {
     if (this.store) {
       return this.store
@@ -74,6 +77,7 @@ export default class Login {
   }
 
   // not need to cover this function by tests
+  /* istanbul ignore next */
   createUser = (user) => {
     if (this.store) {
       return this.store
@@ -92,4 +96,4 @@ export default class Login {
       return null
     }
   }
-}
+} 

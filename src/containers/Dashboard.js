@@ -8,7 +8,6 @@ import Logout from "./Logout.js"
 export const filteredBills = (data, status) => {
   return (data && data.length) ?
     data.filter(bill => {
-
       let selectCondition
 
       // in jest environment
@@ -19,7 +18,7 @@ export const filteredBills = (data, status) => {
         const userEmail = JSON.parse(localStorage.getItem("user")).email
         selectCondition =
           (bill.status === status) &&
-          [...USERS_TEST, userEmail].includes(bill.email)
+          ![...USERS_TEST, userEmail].includes(bill.email)
       }
 
       return selectCondition
@@ -66,14 +65,11 @@ export const getStatus = (index) => {
   }
 }
 
-let counterHS;
-let counterHE;
-
 export default class {
-  constructor({ document, onNavigate, firestore, bills, localStorage }) {
+  constructor({ document, onNavigate, store, bills, localStorage }) {
     this.document = document
     this.onNavigate = onNavigate
-    this.firestore = firestore
+    this.store = store
     $('#arrow-icon1').click((e) => this.handleShowTickets(e, bills, 1))
     $('#arrow-icon2').click((e) => this.handleShowTickets(e, bills, 2))
     $('#arrow-icon3').click((e) => this.handleShowTickets(e, bills, 3))
@@ -88,17 +84,20 @@ export default class {
     if (typeof $('#modaleFileAdmin1').modal === 'function') $('#modaleFileAdmin1').modal('show')
   }
 
+// fixed dashboard issue, Expected behavior: be able to unfold several lists, and consult the tickets of each of the two lists.
+// --> fixed by removing a condition 
+
   handleEditTicket(e, bill, bills) {
-    if (counterHE === undefined || this.id !== bill.id) counterHE = 0
-    if (this.id === undefined || this.id !== bill.id) this.id = bill.id
-    if (counterHE === 0) {
+    if (this.counter === undefined || this.id !== bill.id) this.counter = 0
+    // if (this.id === undefined || this.id !== bill.id) this.id = bill.id
+    if (this.counter % 2 === 0) {
       bills.forEach(b => {
         $(`#open-bill${b.id}`).css({ background: '#0D5AE5' })
       })
       $(`#open-bill${bill.id}`).css({ background: '#2A2B35' })
       $('.dashboard-right-container div').html(DashboardFormUI(bill))
       $('.vertical-navbar').css({ height: '150vh' })
-      counterHE = 1;
+      this.counter ++
     } else {
       $(`#open-bill${bill.id}`).css({ background: '#0D5AE5' })
 
@@ -106,7 +105,7 @@ export default class {
         <div id="big-billed-icon"> ${BigBilledIcon} </div>
       `)
       $('.vertical-navbar').css({ height: '120vh' })
-      counterHE = 0;
+      this.counter ++
     }
     $('#icon-eye-d').click(this.handleClickIconEye)
     $('#btn-accept-bill').click((e) => this.handleAcceptSubmit(e, bill))
@@ -134,46 +133,42 @@ export default class {
   }
 
   handleShowTickets(e, bills, index) {
-    if (counterHS === undefined || this.index !== index) counterHS = 0
+    if (this.counter === undefined || this.index !== index) this.counter = 0
     if (this.index === undefined || this.index !== index) this.index = index
-
-    if ($(e.currentTarget).css("transform") !== "matrix(6.12323e-17, 1, -1, 6.12323e-17, 0, 0)") counterHS = 1
-
-    if (counterHS === 0) {
+    if (this.counter % 2 === 0) {
       $(`#arrow-icon${this.index}`).css({ transform: 'rotate(0deg)'})
       $(`#status-bills-container${this.index}`)
         .html(cards(filteredBills(bills, getStatus(this.index))))
-      counterHS = 1
+      this.counter ++
     } else {
       $(`#arrow-icon${this.index}`).css({ transform: 'rotate(90deg)'})
       $(`#status-bills-container${this.index}`)
         .html("")
-      counterHS = 0
+      this.counter ++
     }
- 
+
     bills.forEach(bill => {
-      $(`#open-bill${bill.id}`).click((e) => {
-        counterHE = 0;
-        this.handleEditTicket(e, bill, bills);
-      })
+      $(`#open-bill${bill.id}`).click((e) => this.handleEditTicket(e, bill, bills))
     })
-    
+
     return bills
+
   }
 
   // not need to cover this function by tests
+  /* istanbul ignore next */
   getBillsAllUsers = () => {
-    if (this.firestore) {
-      return this.firestore
+    if (this.store) {
+      return this.store
       .bills()
-      .get()
+      .list()
       .then(snapshot => {
-        const bills = snapshot.docs
+        const bills = snapshot
         .map(doc => ({
           id: doc.id,
-          ...doc.data(),
-          date: doc.data().date,
-          status: doc.data().status
+          ...doc,
+          date: doc.date,
+          status: doc.status
         }))
         return bills
       })
@@ -182,11 +177,12 @@ export default class {
   }
     
   // not need to cover this function by tests
+  /* istanbul ignore next */
   updateBill = (bill) => {
-    if (this.firestore) {
-    return this.firestore
-      .bill(bill.id)
-      .update(bill)
+    if (this.store) {
+    return this.store
+      .bills()
+      .update({data: JSON.stringify(bill), selector: bill.id})
       .then(bill => bill)
       .catch(console.log)
     }
